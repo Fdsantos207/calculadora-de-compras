@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Calculadora de Compras</title>
+    <link rel="manifest" href="manifest.json">
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; margin: 0; background: #f4f4f4; }
+        video { width: 100%; border-radius: 8px; background: #000; max-height: 300px; object-fit: cover; }
+        .card { background: #fff; padding: 15px; border-radius: 8px; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; color: white; margin-top: 10px; cursor: pointer; }
+        .btn-ler { background: #ff9800; }
+        .btn-add { background: #4caf50; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .total-box { font-size: 24px; font-weight: bold; text-align: center; margin: 20px 0; color: #333; }
+    </style>
+</head>
+<body>
+
+    <video id="camera" autoplay playsinline></video>
+    <button id="btnCapturar" class="btn-ler">📸 Ler Etiqueta</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <div class="card">
+        <input type="text" id="nomeProduto" placeholder="Nome do Produto (ex: Arroz 5kg)">
+        <input type="number" id="precoProduto" step="0.01" placeholder="Preço (R$)">
+        <button id="btnAdicionar" class="btn-add">Adicionar ao Carrinho</button>
+    </div>
+
+    <div class="total-box">
+        Total: R$ <span id="total">0.00</span>
+    </div>
+
+    <div class="card">
+        <h3>Lista de Compras</h3>
+        <ul id="listaCompras"></ul>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
