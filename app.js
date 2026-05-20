@@ -18,14 +18,32 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         alert("Erro ao acessar a câmera. Verifique as permissões.");
     });
 
-// OCR Inteligente
+// OCR Inteligente com Corte (Crop) da Mira
 btnCapturar.addEventListener('click', async () => {
     btnCapturar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    
+    // Matemática do Corte: Exatamente igual ao CSS (80% largura, 35% altura, no centro)
+    const vWidth = video.videoWidth;
+    const vHeight = video.videoHeight;
+    
+    const cropWidth = vWidth * 0.80;
+    const cropHeight = vHeight * 0.35;
+    const cropX = (vWidth - cropWidth) / 2;
+    const cropY = (vHeight - cropHeight) / 2;
+
+    // O Canvas recebe o tamanho pequeno do corte
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+
+    // Desenha apenas a área de dentro da mira no Canvas
+    canvas.getContext('2d').drawImage(
+        video, 
+        cropX, cropY, cropWidth, cropHeight, // De onde ele vai cortar no vídeo real
+        0, 0, cropWidth, cropHeight          // Onde ele vai colar no Canvas invisível
+    );
 
     try {
+        // Envia apenas o quadradinho cortado para o Tesseract (muito mais rápido!)
         const result = await Tesseract.recognize(canvas, 'por');
         const words = result.data.words;
         
@@ -36,7 +54,7 @@ btnCapturar.addEventListener('click', async () => {
             precoInput.value = precoMatch[0].replace(',', '.');
         }
 
-        // Busca Nome (Primeiras palavras sem números)
+        // Busca Nome (Palavras limpas)
         const nomeCandidato = words.filter(w => !/\d/.test(w.text) && w.text.length > 2).slice(0, 3).map(w => w.text).join(' ');
         if(nomeCandidato) {
             nomeInput.value = nomeCandidato;
@@ -62,7 +80,6 @@ btnAdicionar.addEventListener('click', () => {
     carrinho.push(item);
     renderLista();
     
-    // Limpa os campos após adicionar
     nomeInput.value = ''; 
     precoInput.value = '';
 });
@@ -92,7 +109,7 @@ function renderLista() {
     totalSpan.innerText = totalGeral.toFixed(2);
 }
 
-// Funções globais para os botões funcionarem
+// Funções globais
 window.excluir = (id) => {
     carrinho = carrinho.filter(i => i.id !== id);
     renderLista();
@@ -103,7 +120,7 @@ window.editar = (id) => {
     if(item) {
         nomeInput.value = item.nome;
         precoInput.value = item.preco;
-        excluir(id); // Remove o item antigo para você poder salvar a versão nova
-        window.scrollTo(0, 0); // Rola a página para cima
+        excluir(id);
+        window.scrollTo(0, 0);
     }
 };
