@@ -1,23 +1,6 @@
-const video = document.getElementById('camera');
-const canvas = document.getElementById('canvas');
-const btnCapturar = document.getElementById('btnCapturar');
-const nomeInput = document.getElementById('nomeProduto');
-const precoInput = document.getElementById('precoProduto');
-const btnAdicionar = document.getElementById('btnAdicionar');
-const lista = document.getElementById('listaCompras');
-const totalSpan = document.getElementById('total');
+// ... (mantenha o código anterior da câmera e variáveis até o início da função de captura)
 
-let totalGeral = 0;
-
-// 1. Ligar a Câmera Traseira do Celular
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => { video.srcObject = stream; })
-    .catch(err => {
-        alert("Erro ao acessar a câmera. Verifique as permissões.");
-        console.error(err);
-    });
-
-// 2. Lógica de Captura e OCR
+// 2. Lógica de Captura e OCR REFINADA
 btnCapturar.addEventListener('click', async () => {
     btnCapturar.innerText = "⏳ Lendo...";
     btnCapturar.disabled = true;
@@ -29,23 +12,43 @@ btnCapturar.addEventListener('click', async () => {
 
     try {
         // Envia a imagem para o Tesseract processar em Português
-        const result = await Tesseract.recognize(canvas, 'por');
-        const textoExtraido = result.data.text;
+        // Pedimos dados extras sobre as posições das palavras
+        const result = await Tesseract.recognize(canvas, 'por', { logger: m => console.log(m) });
+        const dataExtraida = result.data;
+        const textoPuro = dataExtraida.text;
 
-        // Filtro MVP: Tenta pegar a primeira linha com letras para o Nome
-        const linhas = textoExtraido.split('\n').filter(l => l.trim().length > 2);
-        if(linhas.length > 0) {
-            nomeInput.value = linhas[0].trim(); 
+        // FILTRO REFINADO DE PREÇO (igual ao anterior)
+        const regexPreco = /(\d+[,.]\d{2})/;
+        const matchPreco = textoPuro.match(regexPreco);
+        if(matchPreco) {
+            precoInput.value = matchPreco[0].replace(',', '.');
+        } else {
+            precoInput.value = ''; // Limpa se não achar
+            // alert("Preço não encontrado. Digite manualmente."); 
         }
 
-        // Filtro MVP: Procura por algo que pareça dinheiro (ex: 15,99 ou 15.99)
-        const regexPreco = /(\d+[,.]\d{2})/;
-        const match = textoExtraido.match(regexPreco);
-        if(match) {
-            // Converte vírgula pra ponto para o cálculo matemático funcionar
-            precoInput.value = match[0].replace(',', '.');
+        // --- NOVA LÓGICA DE CAÇA AO NOME ---
+        // A estratégia: Buscar palavras que não têm números e têm tamanho razoável.
+        
+        const blocosTexto = dataExtraida.words; // Pega cada palavra individual e sua posição
+        
+        // Filtra os blocos: remove os que parecem preço, data ou código de barras
+        // Mantém apenas palavras que têm pelo menos 3 letras e nenhum número.
+        const blocosCandidatosA Nome = blocosTexto.filter(bloco => {
+            const texto = bloco.text.trim();
+            // Verifica se a palavra não contém nenhum dígito decimal
+            const temNumero = /\d/.test(texto); 
+            return !temNumero && texto.length >= 3;
+        });
+
+        // Tenta achar o melhor palpite para o nome.
+        // Se houver candidatos, pegamos os 3 primeiros para formar uma sugestão básica.
+        if (blocosCandidatosA Nome.length > 0) {
+            // Unimos as primeiras palavras limpas encontradas
+            const palpiteNome = blocosCandidatosA Nome.slice(0, 3).map(b => b.text).join(' ');
+            nomeInput.value = palpiteNome; 
         } else {
-            alert("Preço não encontrado na etiqueta. Digite manualmente.");
+            nomeInput.value = ''; // Limpa se não achar nada bom
         }
 
     } catch (error) {
@@ -56,25 +59,4 @@ btnCapturar.addEventListener('click', async () => {
     btnCapturar.disabled = false;
 });
 
-// 3. Adicionar na Lista e Somar
-btnAdicionar.addEventListener('click', () => {
-    const nome = nomeInput.value || "Item sem nome";
-    const preco = parseFloat(precoInput.value);
-
-    if(isNaN(preco) || preco <= 0) {
-        return alert("Por favor, insira um preço válido!");
-    }
-
-    // Soma o total
-    totalGeral += preco;
-    totalSpan.innerText = totalGeral.toFixed(2);
-
-    // Cria o item na tela
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${nome}</span> <strong>R$ ${preco.toFixed(2)}</strong>`;
-    lista.appendChild(li);
-
-    // Limpa os campos para a próxima leitura
-    nomeInput.value = '';
-    precoInput.value = '';
-});
+// ... (mantenha o restante do código igual)
