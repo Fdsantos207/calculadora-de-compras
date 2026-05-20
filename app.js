@@ -1,62 +1,109 @@
-// ... (mantenha o código anterior da câmera e variáveis até o início da função de captura)
+const video = document.getElementById('camera');
+const canvas = document.getElementById('canvas');
+const btnCapturar = document.getElementById('btnCapturar');
+const nomeInput = document.getElementById('nomeProduto');
+const precoInput = document.getElementById('precoProduto');
+const btnAdicionar = document.getElementById('btnAdicionar');
+const lista = document.getElementById('listaCompras');
+const totalSpan = document.getElementById('total');
 
-// 2. Lógica de Captura e OCR REFINADA
+let carrinho = [];
+let totalGeral = 0;
+
+// Ligar Câmera
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(stream => { video.srcObject = stream; })
+    .catch(err => {
+        console.error("Erro na câmera: ", err);
+        alert("Erro ao acessar a câmera. Verifique as permissões.");
+    });
+
+// OCR Inteligente
 btnCapturar.addEventListener('click', async () => {
-    btnCapturar.innerText = "⏳ Lendo...";
-    btnCapturar.disabled = true;
-
-    // Tira um "print" do vídeo e joga no canvas
+    btnCapturar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
 
     try {
-        // Envia a imagem para o Tesseract processar em Português
-        // Pedimos dados extras sobre as posições das palavras
-        const result = await Tesseract.recognize(canvas, 'por', { logger: m => console.log(m) });
-        const dataExtraida = result.data;
-        const textoPuro = dataExtraida.text;
-
-        // FILTRO REFINADO DE PREÇO (igual ao anterior)
+        const result = await Tesseract.recognize(canvas, 'por');
+        const words = result.data.words;
+        
+        // Busca Preço
         const regexPreco = /(\d+[,.]\d{2})/;
-        const matchPreco = textoPuro.match(regexPreco);
-        if(matchPreco) {
-            precoInput.value = matchPreco[0].replace(',', '.');
-        } else {
-            precoInput.value = ''; // Limpa se não achar
-            // alert("Preço não encontrado. Digite manualmente."); 
+        const precoMatch = result.data.text.match(regexPreco);
+        if(precoMatch) {
+            precoInput.value = precoMatch[0].replace(',', '.');
         }
 
-        // --- NOVA LÓGICA DE CAÇA AO NOME ---
-        // A estratégia: Buscar palavras que não têm números e têm tamanho razoável.
-        
-        const blocosTexto = dataExtraida.words; // Pega cada palavra individual e sua posição
-        
-        // Filtra os blocos: remove os que parecem preço, data ou código de barras
-        // Mantém apenas palavras que têm pelo menos 3 letras e nenhum número.
-        const blocosCandidatosA Nome = blocosTexto.filter(bloco => {
-            const texto = bloco.text.trim();
-            // Verifica se a palavra não contém nenhum dígito decimal
-            const temNumero = /\d/.test(texto); 
-            return !temNumero && texto.length >= 3;
-        });
-
-        // Tenta achar o melhor palpite para o nome.
-        // Se houver candidatos, pegamos os 3 primeiros para formar uma sugestão básica.
-        if (blocosCandidatosA Nome.length > 0) {
-            // Unimos as primeiras palavras limpas encontradas
-            const palpiteNome = blocosCandidatosA Nome.slice(0, 3).map(b => b.text).join(' ');
-            nomeInput.value = palpiteNome; 
-        } else {
-            nomeInput.value = ''; // Limpa se não achar nada bom
+        // Busca Nome (Primeiras palavras sem números)
+        const nomeCandidato = words.filter(w => !/\d/.test(w.text) && w.text.length > 2).slice(0, 3).map(w => w.text).join(' ');
+        if(nomeCandidato) {
+            nomeInput.value = nomeCandidato;
         }
 
-    } catch (error) {
+    } catch (e) { 
+        console.error(e); 
         alert("Erro na leitura da imagem.");
     }
-
-    btnCapturar.innerText = "📸 Ler Etiqueta";
-    btnCapturar.disabled = false;
+    btnCapturar.innerHTML = '<i class="fa-solid fa-camera"></i>';
 });
 
-// ... (mantenha o restante do código igual)
+// Adicionar/Atualizar Lista
+btnAdicionar.addEventListener('click', () => {
+    const nome = nomeInput.value || "Produto";
+    const preco = parseFloat(precoInput.value);
+
+    if(isNaN(preco) || preco <= 0) {
+        return alert("Por favor, insira um preço válido!");
+    }
+
+    const item = { id: Date.now(), nome, preco };
+    carrinho.push(item);
+    renderLista();
+    
+    // Limpa os campos após adicionar
+    nomeInput.value = ''; 
+    precoInput.value = '';
+});
+
+// Renderizar a lista na tela
+function renderLista() {
+    lista.innerHTML = '';
+    totalGeral = 0;
+    
+    carrinho.forEach(item => {
+        totalGeral += item.preco;
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        div.innerHTML = `
+            <div class="item-info">
+                <b>${item.nome}</b>
+                <span>R$ ${item.preco.toFixed(2)}</span>
+            </div>
+            <div class="actions">
+                <button class="btn-action edit" onclick="editar(${item.id})"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-action delete" onclick="excluir(${item.id})"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        `;
+        lista.appendChild(div);
+    });
+    
+    totalSpan.innerText = totalGeral.toFixed(2);
+}
+
+// Funções globais para os botões funcionarem
+window.excluir = (id) => {
+    carrinho = carrinho.filter(i => i.id !== id);
+    renderLista();
+};
+
+window.editar = (id) => {
+    const item = carrinho.find(i => i.id === id);
+    if(item) {
+        nomeInput.value = item.nome;
+        precoInput.value = item.preco;
+        excluir(id); // Remove o item antigo para você poder salvar a versão nova
+        window.scrollTo(0, 0); // Rola a página para cima
+    }
+};
